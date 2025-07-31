@@ -6,6 +6,7 @@ const EnergyHourly = require('../models/energyMeterModels/energyHourly.model');
 const EnergyDaily = require('../models/energyMeterModels/energyDaily.model');
 const EnergyMonthly = require('../models/energyMeterModels/energyMonthly.model');
 const EnergyYearly = require('../models/energyMeterModels/energyYearly.model');
+const energyRawHistoryModel= require('../models/energyMeterRawHistory.model');
 
 // Helper function to fill missing hours with zero values
 function fillMissingHours(data, startDate, endDate, entityId) {
@@ -202,193 +203,6 @@ const getEnergyDataByFilter = async (req, res) => {
     });
   }
 };
-
-// // Helper function to fill missing months with zero values
-// function fillMissingMonths(data, startDate, endDate, entityId) {
-//   const result = [];
-//   const monthMap = new Map();
- 
-//   // Create a map of existing data by month
-//   data.forEach(item => {
-//     const monthYear = `${new Date(item.timestamp).getMonth()}-${new Date(item.timestamp).getFullYear()}`;
-//     monthMap.set(monthYear, item);
-//   });
-
-//   // Generate all months in the range
-//   const currentMonth = new Date(startDate);
-//   while (currentMonth <= endDate) {
-//     const monthYear = `${currentMonth.getMonth()}-${currentMonth.getFullYear()}`;
-//     const existingData = monthMap.get(monthYear);
-   
-//     if (existingData) {
-//       result.push(existingData);
-//     } else {
-//       result.push({
-//         entityId,
-//         timestamp: new Date(currentMonth),
-//         totalValue: 0,
-//         _id: `empty-${currentMonth.getTime()}`
-//       });
-//     }
-   
-//     currentMonth.setMonth(currentMonth.getMonth() + 1);
-//   }
-
-//   return result;
-// }
-// const getEnergyDataByFilter = async (req, res) => {
-//   try {
-//     const { entityId, type, start, end } = req.query;
-//     let Model;
-//     switch (type) {
-//       case 'hourly': Model = EnergyHourly; break;
-//       case 'daily': Model = EnergyDaily; break;
-//       case 'monthly': Model = EnergyMonthly; break;
-//       case 'yearly': Model = EnergyYearly; break;
-//       default: return res.status(400).json({ error: 'Invalid type' });
-//     }
-
-//     const query = {
-//       entityId,
-//       timestamp: { $gte: new Date(start), $lte: new Date(end) }
-//     };
-
-//     const data = await Model.find(query).sort({ timestamp: 1 });
-//     res.json(data);
-//   } catch (err) {
-//     res.status(500).json({ error: err.message });
-//   }
-// };
-
-// const { startOfHour, addHours, startOfDay, addDays, startOfMonth, addMonths, format } = require('date-fns');
-
-// const getEnergyDataByFilter = async (req, res) => {
-//   try {
-//     const { entityId, type, start, end } = req.query;
-//     let Model, intervals = [], intervalFn, formatStr;
-
-//     switch (type) {
-//       case 'hourly':
-//         Model = EnergyHourly;
-//         intervalFn = addHours;
-//         formatStr = 'yyyy-MM-dd HH:00';
-//         // Generate 24 hours from 12am
-//         {
-//           let current = startOfDay(new Date(start));
-//           for (let i = 0; i < 24; i++) {
-//             intervals.push(format(addHours(current, i), formatStr));
-//           }
-//         }
-//         break;
-//       case 'daily':
-//         Model = EnergyDaily;
-//         intervalFn = addDays;
-//         formatStr = 'yyyy-MM-dd';
-//         // 7 or 30 days
-//         {
-//           let days = (new Date(end) - new Date(start)) / (1000 * 60 * 60 * 24) + 1;
-//           let current = startOfDay(new Date(start));
-//           for (let i = 0; i < days; i++) {
-//             intervals.push(format(addDays(current, i), formatStr));
-//           }
-//         }
-//         break;
-//       case 'monthly':
-//         Model = EnergyMonthly;
-//         intervalFn = addMonths;
-//         formatStr = 'yyyy-MM';
-//         // 12 months
-//         {
-//           let current = startOfMonth(new Date(start));
-//           for (let i = 0; i < 12; i++) {
-//             intervals.push(format(addMonths(current, i), formatStr));
-//           }
-//         }
-//         break;
-//       case 'yearly':
-//         Model = EnergyYearly;
-//         intervalFn = null;
-//         formatStr = 'yyyy';
-//         // You can implement yearly if needed
-//         break;
-//       default:
-//         return res.status(400).json({ error: 'Invalid type' });
-//     }
-
-//     const query = {
-//       entityId,
-//       timestamp: { $gte: new Date(start), $lte: new Date(end) }
-//     };
-
-//     const data = await Model.find(query).sort({ timestamp: 1 });
-
-//     // Map data to interval keys
-//     const dataMap = {};
-//     data.forEach(item => {
-//       let key;
-//       if (type === 'hourly') key = format(new Date(item.timestamp), 'yyyy-MM-dd HH:00');
-//       if (type === 'daily') key = format(new Date(item.timestamp), 'yyyy-MM-dd');
-//       if (type === 'monthly') key = format(new Date(item.timestamp), 'yyyy-MM');
-//       dataMap[key] = item;
-//     });
-
-//     // Fill missing intervals
-//     const result = intervals.map(key => {
-//       if (dataMap[key]) {
-//         return {
-//           ...dataMap[key]._doc,
-//           interval: key
-//         };
-//       } else {
-//         return {
-//           interval: key,
-//           totalValue: 0,
-//           timestamp: key
-//         };
-//       }
-//     });
-
-//     res.json(result);
-//   } catch (err) {
-//     res.status(500).json({ error: err.message });
-//   }
-// };
-// const getAllEnergyEntities = async (req, res) => {
-//   try {
-//     const result = await Entity.aggregate([
-//       {
-//         $match: { stateType: "sensor", entityName: /PZEM-004T V3 Energy/i },
-//       },
-//       {
-//         $lookup: {
-//           from: "devices",
-//           localField: "device",
-//           foreignField: "_id",
-//           as: "deviceInfo",
-//         },
-//       },
-//       {
-//         $unwind: "$deviceInfo",
-//       },
-//       // exclude inactive devices
-//       { $match: { "deviceInfo.isActive": true } },
-//       {
-//         $project: {
-//           _id: 1,
-//           entityName: 1,
-//           deviceName: "$deviceInfo.name",
-//           entityId: 1,
-//           state: 1,
-//         },
-//       },
-//     ]);
-
-//     res.status(200).json(result);
-//   } catch (error) {
-//     console.error(error);
-//     res.status(500).json({ error: "Internal Server Error" });
-//   }
-// };
 const getAllEnergyEntities = async (req, res) => {
   try {
     const result = await Entity.aggregate([
@@ -441,7 +255,7 @@ const getAllEnergyEntities = async (req, res) => {
 
 
   const getEnergyHistory = async (req, res) => {
-    const { entityId } = req.params;
+    const { entityId } = req.params;h
 
     try {
         const entityHistory = await EntityHistory.findOne({ entityId }).select('history');
@@ -485,9 +299,197 @@ const getAllEnergyEntities = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
+// from date-range get energy history values by device id
+const getEnergyHistoryByDeviceIdAndDateRange = async (req, res) => {
+  const { deviceId, startDate, endDate } = req.query;
+
+  try {
+    // Validate inputs
+    if (!deviceId || !startDate || !endDate) {
+      return res.status(400).json({ error: 'Missing required parameters' });
+    }
+
+    // Convert string dates to Date objects
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    // Fetch energy history for the device
+const energyHistory = await energyRawHistoryModel.find({
+  deviceId,
+  time: { $gte: start, $lte: end }
+}).sort({ time: 1 });
+
+    if (!energyHistory.length) {
+      return res.status(404).json({ message: 'No energy history found for this device in the specified date range.' });
+    }
+
+    res.status(200).json(energyHistory);
+  } catch (err) {
+    console.error('Error fetching energy history:', err);
+    res.status(500).json({ error: 'Internal server error', details: err.message });
+  }
+};
+
+// get the daily energy history for a entity by device id
+const getDailyEnergyHistoryByDeviceIdAndDateRange = async (req, res) => {
+  const { entityId, startDate, endDate } = req.query;
+
+  try {
+    // Validate inputs
+    if (!entityId || !startDate || !endDate) {
+      return res.status(400).json({ error: 'Missing required parameters' });
+    }
+
+    // Convert string dates to Date objects
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    // Fetch daily energy history for the given entityId in the date range
+    const dailyHistory = await EnergyDaily.find({
+      entityId,
+      timestamp: { $gte: start, $lte: end }
+    }).sort({ timestamp: 1 });
+
+    if (!dailyHistory.length) {
+      return res.status(404).json({ message: 'No daily energy history found for this entity in the specified date range.' });
+    }
+
+    // Calculate the sum and average of all totalValue fields
+    const total = dailyHistory.reduce((sum, item) => sum + (item.totalValue || 0), 0);
+    const average = dailyHistory.length > 0 ? total / dailyHistory.length : 0;
+
+    res.status(200).json({
+      summary: { total, average },
+      data: dailyHistory
+    });
+  } catch (err) {
+    console.error('Error fetching daily energy history:', err);
+    res.status(500).json({ error: 'Internal server error', details: err.message });
+  }
+}
+
+const specialMeterPairs = {
+  '686b58ec216df753a7cb6088': ['6801053b097550e68a379420'],
+  '680102fc097550e68a37940e': ['686b6c24e3a6c731e66cc9a0'],
+  '6856bc0a9829f2f0badf259d': ['6856bc689829f2f0badf259f', '6856bc8e9829f2f0badf25a1']
+};
+
+const specialParentIds = Object.keys(specialMeterPairs);
+const specialChildIds = Object.values(specialMeterPairs).flat();
+
+const getAllEnergyMetersWithDateRange = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    if (!startDate || !endDate) {
+      return res.status(400).json({ error: "Missing required parameters" });
+    }
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    // Step 1: Get all entities (do NOT exclude special meters by name)
+    const entities = await Entity.aggregate([
+      {
+        $match: {
+          stateType: "sensor",
+          entityName: {
+            $regex: /PZEM-004T V3 Energy/i
+          },
+        },
+      },
+      {
+        $lookup: {
+          from: "devices",
+          localField: "device",
+          foreignField: "_id",
+          as: "deviceInfo",
+        },
+      },
+      { $unwind: "$deviceInfo" },
+      {
+        $match: {
+          "deviceInfo.isActive": true
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          entityName: 1,
+          deviceName: "$deviceInfo.name",
+          entityId: 1,
+          state: 1,
+        },
+      },
+    ]);
+
+    // Step 2: Build a map for quick lookup
+    const entityMap = {};
+    entities.forEach(e => { entityMap[e._id.toString()] = e; });
+
+    // Step 3: For each entity, get total consumption from EnergyDaily
+    const consumptionMap = {};
+    await Promise.all(
+      entities.map(async (entity) => {
+        const dailyRecords = await EnergyDaily.find({
+          entityId: entity._id,
+          timestamp: { $gte: start, $lte: end }
+        });
+        const totalConsumption = dailyRecords.reduce(
+          (sum, rec) => sum + (rec.totalValue || 0),
+          0
+        );
+        consumptionMap[entity._id.toString()] = totalConsumption;
+      })
+    );
+
+    // Step 4: Prepare the response, handling special meter pairs
+    const response = [];
+
+    // Handle special parents
+    for (const parentId of specialParentIds) {
+      if (entityMap[parentId]) {
+        let sum = consumptionMap[parentId] || 0;
+        for (const childId of specialMeterPairs[parentId]) {
+          sum += consumptionMap[childId] || 0;
+        }
+        response.push({
+          ...entityMap[parentId],
+          totalConsumption: sum
+        });
+      }
+    }
+
+    // Handle normal entities (not special parents or children, and not excluded by name)
+    for (const entity of entities) {
+      const id = entity._id.toString();
+      // Exclude special parents and children from normal list
+      if (
+        !specialParentIds.includes(id) &&
+        !specialChildIds.includes(id) &&
+        entity.entityName !== "PZEM-004T V3 Energy-2" &&
+        entity.entityName !== "PZEM-004T V3 Energy-3" &&
+        entity.deviceName !== "Sales-2 Office Smart Energy Meter" &&
+        entity.deviceName !== "CEO-2 Office Smart Energy Meter"
+      ) {
+        response.push({
+          ...entity,
+          totalConsumption: consumptionMap[id] || 0
+        });
+      }
+    }
+
+    res.status(200).json(response);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
 module.exports =  
 {getEnergyHistory,
 getAllEnergyEntities,
 getEnergyDataByFilter,
-getEntityWithAllDeviceEntities
+getEntityWithAllDeviceEntities,
+getEnergyHistoryByDeviceIdAndDateRange,
+getDailyEnergyHistoryByDeviceIdAndDateRange,
+getAllEnergyMetersWithDateRange
 };

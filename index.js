@@ -6,8 +6,8 @@ const connectDB = require('./db/connect');
 const mqttClient = require('./mqtt/mqttClient');
 const { Server } = require('socket.io');
 const fs = require('fs');
-const https = require('https');
-// const http = require('http');
+// const https = require('https');
+const http = require('http');
 const Device = require('./models/Device.model');
 const Entity = require('./models/entity.model');
 const {energyRawHistoryController} = require('./controllers/energyMeterRawHistory.controller');
@@ -27,11 +27,11 @@ const corsOptions = {
 // app.use(cors(corsOptions));
 app.use(cors());
 // Read self-signed certs
-const credentials = {
-  key: fs.readFileSync('./certs/private.key', 'utf8'),
-  cert: fs.readFileSync('./certs/certificate.crt', 'utf8'),
-  ca: fs.readFileSync('./certs/ca_bundle.crt', 'utf8')
-};
+// const credentials = {
+//   key: fs.readFileSync('./certs/private.key', 'utf8'),
+//   cert: fs.readFileSync('./certs/certificate.crt', 'utf8'),
+//   ca: fs.readFileSync('./certs/ca_bundle.crt', 'utf8')
+// };
 // app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -62,10 +62,10 @@ const start = async () => {
     try {
         await connectDB(dbConnectionString);
         console.log('Connected to database');
-scheduleAggregations();
-acHistoricFunction();
-        // const server = http.createServer(app);
-        const server = https.createServer(credentials, app);
+// scheduleAggregations();
+// acHistoricFunction();
+        const server = http.createServer(app);
+        // const server = https.createServer(credentials, app);
         
         const io = new Server(server, {
             cors: {
@@ -88,15 +88,15 @@ acHistoricFunction();
 //         "PZEM-004T V3 Power Factor"
 //     ]
 // } });
-        entities.forEach((entity) => {
-            mqttClient.subscribe(entity.subscribeTopic, (err) => {
-                if (err) {
-                    console.error(`Failed to subscribe to ${entity.subscribeTopic}:`, err);
-                } else {
-                    console.log(`Subscribed to topic: ${entity.subscribeTopic}`);
-                }
-            });
-        });
+        // entities.forEach((entity) => {
+        //     mqttClient.subscribe(entity.subscribeTopic, (err) => {
+        //         if (err) {
+        //             console.error(`Failed to subscribe to ${entity.subscribeTopic}:`, err);
+        //         } else {
+        //             console.log(`Subscribed to topic: ${entity.subscribeTopic}`);
+        //         }
+        //     });
+        // });
 
         io.on('connection', async (socket) => {
             console.log(`New WebSocket client connected: ${socket.id}`);        
@@ -205,8 +205,8 @@ try {
     const deviceId = entity.device;
 
     // Store raw history for energy meters and all other entities
-    await energyRawHistoryController(entity, entityId, deviceId, newState);
-    await entityRawHistoryController(entity, entityId, deviceId, newState);
+    // await energyRawHistoryController(entity, entityId, deviceId, newState);
+    // await entityRawHistoryController(entity, entityId, deviceId, newState);
 
     console.log(`Updated history for entity ${entity.entityName} (${entity._id}) with device (${deviceId}).`);
 } catch (historyError) {
@@ -271,7 +271,7 @@ try {
         // }
         
         // Call this function on server start
-        subscribeToDeviceStatusTopics();
+        // subscribeToDeviceStatusTopics();
         
         // Handle status messages
         mqttClient.on('message', async (topic, message) => {

@@ -121,5 +121,30 @@ const getAcHistory = async (req, res) => {
     res.status(500).json({ message: "Error fetching history", error });
   }
 };
+const getAcHistoryByairConditionerIdAndDateRange = async (req, res) => {
+  try {
+    const { airConditionerId, startDate, endDate } = req.query;
 
-module.exports = { saveAcData,getAllAc, getAcHistory };
+    if (!airConditionerId || !startDate || !endDate) {
+      return res.status(400).json({ message: "Missing required parameters" });
+    }
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+
+    const history = await AirConditionerHistory.find({
+      airConditioner: airConditionerId,
+      timestamp: {
+        $gte: start,
+        $lte: end
+      }
+    }).sort({ timestamp: 1 });
+
+    res.status(200).json({ data: history });
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching AC history", error });
+  }
+};
+
+module.exports = { saveAcData,getAllAc, getAcHistory,getAcHistoryByairConditionerIdAndDateRange };
