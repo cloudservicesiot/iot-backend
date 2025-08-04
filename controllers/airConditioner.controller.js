@@ -1,4 +1,3 @@
-
 const { response } = require("express");
 const Airconditioner =require("../models/airConditioner.model");
 const AirConditionerHistory = require("../models/airConditionerHistory.model")
@@ -147,4 +146,57 @@ const getAcHistoryByairConditionerIdAndDateRange = async (req, res) => {
   }
 };
 
-module.exports = { saveAcData,getAllAc, getAcHistory,getAcHistoryByairConditionerIdAndDateRange };
+const getAcTimeSlotsByDeviceIdAndDateRange = async (req, res) => {
+  try {
+    const { airConditionerId, startDate, endDate } = req.query;
+    if (!airConditionerId || !startDate || !endDate) {
+      return res.status(400).json({ message: "Missing required parameters" });
+    }
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+
+    // Get all history records sorted by timestamp
+    const history = await AirConditionerHistory.find({
+      airConditioner: airConditionerId,
+      timestamp: { $gte: start, $lte: end }
+    }).sort({ timestamp: 1 });
+
+    if (!history.length) {
+      return res.status(404).json({ message: "No AC history found for this device in the specified date range." });
+    }
+
+    // Build grouped time slots
+    const slots = [];
+    let slotStart = history[0].timestamp;
+    let currentStatus = history[0].mode === "off" ? "off" : "on";
+
+    for (let i = 1; i < history.length; i++) {
+      const status = history[i].mode === "off" ? "off" : "on";
+      if (status !== currentStatus) {
+        // Status changed, close previous slot
+        slots.push({
+          start: slotStart,
+          end: history[i].timestamp,
+          status: currentStatus
+        });
+        // Start new slot
+        slotStart = history[i].timestamp;
+        currentStatus = status;
+      }
+    }
+    // Add last slot
+    slots.push({
+      start: slotStart,
+      end: null, // till end of range or next event
+      status: currentStatus
+    });
+
+    res.status(200).json({ slots });
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching AC time slots", error });
+  }
+};
+
+module.exports = { saveAcData,getAllAc, getAcHistory,getAcHistoryByairConditionerIdAndDateRange, getAcTimeSlotsByDeviceIdAndDateRange };
