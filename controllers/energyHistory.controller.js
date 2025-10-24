@@ -255,7 +255,7 @@ const getAllEnergyEntities = async (req, res) => {
 
 
   const getEnergyHistory = async (req, res) => {
-    const { entityId } = req.params;h
+    const { entityId } = req.params;
 
     try {
         const entityHistory = await EntityHistory.findOne({ entityId }).select('history');

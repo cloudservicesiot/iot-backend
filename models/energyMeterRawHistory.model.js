@@ -12,7 +12,7 @@ const energyRawSchema = new mongoose.Schema({
     required: true
   },
   value: {
-    type: Number,
+    type: mongoose.Schema.Types.Mixed,
     required: true
   },
   time: {

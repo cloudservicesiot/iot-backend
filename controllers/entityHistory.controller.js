@@ -2,6 +2,8 @@ const mongoose = require("mongoose");
 const EntityHistory = require("../models/entityHistory.model");
 const Entity = require("../models/entity.model");
 const Device = require("../models/Device.model");
+const entityRawHistory = require("../models/entityRawHistory.model");
+const energyMeterRawHistory= require("../models/energyMeterRawHistory.model");
 
 const getAllEntities = async (req, res) => {
   try {
@@ -54,4 +56,30 @@ const getEntityHistory = async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 };
-module.exports = {getAllEntities,getEntityHistory}
+
+const getEntityRawHistoryByEntityIdAndDate = async (req, res) => {
+  try {
+    const { entityId, date } = req.query;
+    if (!entityId || !date) {
+      return res.status(400).json({ error: "Missing required parameters" });
+    }
+
+    // Parse date and get start/end of day
+    const dayStart = new Date(date);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(date);
+    dayEnd.setHours(23, 59, 59, 999);
+
+    // Find all history for that entity and day
+    const history = await entityRawHistory.find({
+      entityId,
+      time: { $gte: dayStart, $lte: dayEnd }
+    }).sort({ time: 1 });
+
+    res.status(200).json({ data: history });
+  } catch (error) {
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+module.exports = {getAllEntities,getEntityHistory,getEntityRawHistoryByEntityIdAndDate}
