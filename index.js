@@ -222,8 +222,8 @@ const connectDB = require('./db/connect');
 const mqttClient = require('./mqtt/mqttClient');
 const { Server } = require('socket.io');
 const fs = require('fs');
-const https = require('https');
-// const http = require('http');
+// const https = require('https');
+const http = require('http');
 const Device = require('./models/Device.model');
 const Entity = require('./models/entity.model');
 const {energyRawHistoryController} = require('./controllers/energyMeterRawHistory.controller');
@@ -243,11 +243,11 @@ const corsOptions = {
 // app.use(cors(corsOptions));
 app.use(cors());
 // Read self-signed certs
-const credentials = {
-  key: fs.readFileSync('./certs/private.key', 'utf8'),
-  cert: fs.readFileSync('./certs/certificate.crt', 'utf8'),
-  ca: fs.readFileSync('./certs/ca_bundle.crt', 'utf8')
-};
+// const credentials = {
+//   key: fs.readFileSync('./certs/private.key', 'utf8'),
+//   cert: fs.readFileSync('./certs/certificate.crt', 'utf8'),
+//   ca: fs.readFileSync('./certs/ca_bundle.crt', 'utf8')
+// };
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -279,8 +279,8 @@ const start = async () => {
         console.log('Connected to database');
 scheduleAggregations();
 // acHistoricFunction();
-        // const server = http.createServer(app);
-        const server = https.createServer(credentials, app);
+        const server = http.createServer(app);
+        // const server = https.createServer(credentials, app);
         
         const io = new Server(server, {
             cors: {
@@ -292,26 +292,11 @@ scheduleAggregations();
             console.log(`Server is listening on port ${port}`);
         });
 
-        // Fetch all active entities from the database and subscribe to their MQTT topics
-        const entities = await Entity.find({ isActive: true });
-//          const entities = await Entity.find({ isActive: true, entityName: {
-//     $nin: [
-//         "PZEM-004T V3 Current",
-//         "PZEM-004T V3 Voltage",
-//         "PZEM-004T V3 Power",
-//         "PZEM-004T V3 Frequency",
-//         "PZEM-004T V3 Power Factor"
-//     ]
-// } });
-        entities.forEach((entity) => {
-            mqttClient.subscribe(entity.subscribeTopic, (err) => {
-                if (err) {
-                    console.error(`Failed to subscribe to ${entity.subscribeTopic}:`, err);
-                } else {
-                    console.log(`Subscribed to topic: ${entity.subscribeTopic}`);
-                }
-            });
-        });
+        // Initialize MQTT subscription service
+        const mqttSubscriptionService = require('./services/mqttSubscriptionService');
+        
+        // Subscribe to all active entities using the subscription service
+        await mqttSubscriptionService.subscribeToAllActiveEntities();
 
         io.on('connection', async (socket) => {
             console.log(`New WebSocket client connected: ${socket.id}`);        

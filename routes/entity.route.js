@@ -2,7 +2,9 @@ const express = require('express');
 const router = express.Router();
 const { AddEntity, getAllEntities, getAllEntitieswithDevices, updateEntityState,getEntitiesByDeviceId , getEntityById,
     updateEntity,
-    deleteEntity} = require('../controllers/entity.controller');
+    deleteEntity,
+    refreshMQTTSubscriptions,
+    getMQTTSubscriptionStatus} = require('../controllers/entity.controller');
 
 // Define routes
 router.route('/add').post(AddEntity);
@@ -13,4 +15,6 @@ router.route('/delete/:id').delete(deleteEntity);
 router.route('/getentities').get(getAllEntitieswithDevices);
 router.route('/state').post(updateEntityState);
 router.route('/getbydeviceId/:deviceId').get(getEntitiesByDeviceId);
+router.route('/refresh-mqtt-subscriptions').post(refreshMQTTSubscriptions);
+router.route('/mqtt-subscription-status').get(getMQTTSubscriptionStatus);
 module.exports = router;

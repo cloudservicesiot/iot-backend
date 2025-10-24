@@ -8,145 +8,6 @@ const EnergyMonthly = require('../models/energyMeterModels/energyMonthly.model')
 const EnergyYearly = require('../models/energyMeterModels/energyYearly.model');
 const energyRawHistoryModel= require('../models/energyMeterRawHistory.model');
 
-// Helper function to fill missing hours with zero values
-function fillMissingHours(data, startDate, endDate, entityId) {
-  const result = [];
-  const hourMap = new Map();
- 
-  // Create a map of existing data by hour
-  data.forEach(item => {
-    const date = new Date(item.timestamp);
-    const hourKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}-${date.getHours()}`;
-    hourMap.set(hourKey, item);
-  });
-
-  // Generate all hours in the range
-  const currentHour = new Date(startDate);
-  while (currentHour <= endDate) {
-    const hourKey = `${currentHour.getFullYear()}-${currentHour.getMonth()}-${currentHour.getDate()}-${currentHour.getHours()}`;
-    const existingData = hourMap.get(hourKey);
-   
-    if (existingData) {
-      result.push(existingData);
-    } else {
-      result.push({
-        entityId,
-        timestamp: new Date(currentHour),
-        totalValue: 0,
-        _id: `empty-${currentHour.getTime()}`
-      });
-    }
-   
-    currentHour.setHours(currentHour.getHours() + 1);
-  }
-
-  return result;
-}
-
-// Helper function to fill missing days with zero values
-function fillMissingDays(data, startDate, endDate, entityId) {
-  const result = [];
-  const dayMap = new Map();
- 
-  // Create a map of existing data by day
-  data.forEach(item => {
-    const date = new Date(item.timestamp);
-    const dayKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
-    dayMap.set(dayKey, item);
-  });
-
-  // Generate all days in the range
-  const currentDay = new Date(startDate);
-  while (currentDay <= endDate) {
-    const dayKey = `${currentDay.getFullYear()}-${currentDay.getMonth()}-${currentDay.getDate()}`;
-    const existingData = dayMap.get(dayKey);
-   
-    if (existingData) {
-      result.push(existingData);
-    } else {
-      result.push({
-        entityId,
-        timestamp: new Date(currentDay),
-        totalValue: 0,
-        _id: `empty-${currentDay.getTime()}`
-      });
-    }
-   
-    currentDay.setDate(currentDay.getDate() + 1);
-  }
-
-  return result;
-}
-
-// Helper function to fill missing months with zero values
-function fillMissingMonths(data, startDate, endDate, entityId) {
-  const result = [];
-  const monthMap = new Map();
-
-  // Create a map of existing data by month
-  data.forEach(item => {
-    const date = new Date(item.timestamp);
-    const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
-    monthMap.set(monthKey, item);
-  });
-
-  // Generate all months in the range (including current month)
-  const currentMonth = new Date(startDate);
-  while (currentMonth <= endDate) {
-    const monthKey = `${currentMonth.getFullYear()}-${currentMonth.getMonth()}`;
-    const existingData = monthMap.get(monthKey);
-
-    if (existingData) {
-      result.push(existingData);
-    } else {
-      result.push({
-        entityId,
-        timestamp: new Date(currentMonth),
-        totalValue: 0,
-        _id: `empty-${currentMonth.getTime()}`
-      });
-    }
-
-    currentMonth.setMonth(currentMonth.getMonth() + 1); // Increment month by 1
-  }
-
-  return result;
-}
-
-
-// Helper function to fill missing years with zero values
-function fillMissingYears(data, startDate, endDate, entityId) {
-  const result = [];
-  const yearMap = new Map();
- 
-  // Create a map of existing data by year
-  data.forEach(item => {
-    const year = new Date(item.timestamp).getFullYear();
-    yearMap.set(year, item);
-  });
-
-  // Generate all years in the range
-  const currentYear = new Date(startDate);
-  while (currentYear <= endDate) {
-    const year = currentYear.getFullYear();
-    const existingData = yearMap.get(year);
-   
-    if (existingData) {
-      result.push(existingData);
-    } else {
-      result.push({
-        entityId,
-        timestamp: new Date(currentYear),
-        totalValue: 0,
-        _id: `empty-${currentYear.getTime()}`
-      });
-    }
-   
-    currentYear.setFullYear(currentYear.getFullYear() + 1);
-  }
-
-  return result;
-}
 
 const getEnergyDataByFilter = async (req, res) => {
   try {
@@ -175,26 +36,8 @@ const getEnergyDataByFilter = async (req, res) => {
       timestamp: { $gte: startDate, $lte: endDate }
     }).sort({ timestamp: 1 });
 
-    // Fill missing time periods based on the data type
-    let filledData;
-    switch (type) {
-      case 'hourly':
-        filledData = fillMissingHours(data, startDate, endDate, entityId);
-        break;
-      case 'daily':
-        filledData = fillMissingDays(data, startDate, endDate, entityId);
-        break;
-      case 'monthly':
-        filledData = fillMissingMonths(data, startDate, endDate, entityId);
-        break;
-      case 'yearly':
-        filledData = fillMissingYears(data, startDate, endDate, entityId);
-        break;
-      default:
-        filledData = data;
-    }
-
-    res.json(filledData);
+    // Return only the actual data without filling missing periods
+    res.json(data);
   } catch (err) {
     console.error('Error fetching energy data:', err);
     res.status(500).json({
@@ -484,6 +327,37 @@ const getAllEnergyMetersWithDateRange = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
+// Get hourly energy data for a specific date
+const getHourlyEnergyDataForDate = async (req, res) => {
+  try {
+    const { entityId, date } = req.query;
+    
+    if (!entityId || !date) {
+      return res.status(400).json({ error: 'Missing required parameters' });
+    }
+
+    // Convert date string to start and end of day
+    const targetDate = new Date(date);
+    const startOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0);
+    const endOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59);
+
+    // Get hourly data for the specific date
+    const hourlyData = await EnergyHourly.find({
+      entityId,
+      timestamp: { $gte: startOfDay, $lte: endOfDay }
+    }).sort({ timestamp: 1 });
+
+    // Return only the actual data without filling missing periods
+    res.json(hourlyData);
+  } catch (err) {
+    console.error('Error fetching hourly energy data for date:', err);
+    res.status(500).json({
+      error: 'Internal server error',
+      details: err.message
+    });
+  }
+};
 module.exports =  
 {getEnergyHistory,
 getAllEnergyEntities,
@@ -491,5 +365,6 @@ getEnergyDataByFilter,
 getEntityWithAllDeviceEntities,
 getEnergyHistoryByDeviceIdAndDateRange,
 getDailyEnergyHistoryByDeviceIdAndDateRange,
-getAllEnergyMetersWithDateRange
+getAllEnergyMetersWithDateRange,
+getHourlyEnergyDataForDate
 };

@@ -1,4 +1,6 @@
 const Entity=require('../models/entity.model');
+const mqttSubscriptionService = require('../services/mqttSubscriptionService');
+
 // add entity
 const AddEntity = async (req, res, next) => {
     try {
@@ -15,7 +17,18 @@ const AddEntity = async (req, res, next) => {
       });
   
       const savedEntity = await newEntity.save();
-  console.log("Invalid state type");
+      
+      // Subscribe to MQTT topic if entity is active and has a subscribe topic
+      if (savedEntity.isActive && savedEntity.subscribeTopic) {
+        try {
+          await mqttSubscriptionService.subscribeToEntity(savedEntity._id);
+          console.log(`✅ Auto-subscribed to new entity: ${savedEntity.entityName}`);
+        } catch (subscriptionError) {
+          console.error('Failed to auto-subscribe to new entity:', subscriptionError);
+          // Don't fail the entity creation if subscription fails
+        }
+      }
+      
       return res.status(201).json({
         status: true,
         data: savedEntity,
@@ -111,16 +124,47 @@ const updateEntity = async (req,res,next)=>{
     const entityId=req.params.entityId;
     const body=req.body;
     try{
-        const updateEntity=await Entity.findByIdAndUpdate(entityId,body,{new:true});
-        if(!updateEntity){
+        // Get the original entity to check for subscription changes
+        const originalEntity = await Entity.findById(entityId);
+        if (!originalEntity) {
             return res.status(404).json({
                 status:false,
                 msg:"Entity not found"
             })
         }
+
+        const updatedEntity=await Entity.findByIdAndUpdate(entityId,body,{new:true});
+        
+        // Handle MQTT subscription changes
+        try {
+            // If entity was deactivated, unsubscribe
+            if (originalEntity.isActive && !updatedEntity.isActive && originalEntity.subscribeTopic) {
+                await mqttSubscriptionService.unsubscribeFromEntity(entityId);
+                console.log(`✅ Unsubscribed from deactivated entity: ${updatedEntity.entityName}`);
+            }
+            // If entity was activated, subscribe
+            else if (!originalEntity.isActive && updatedEntity.isActive && updatedEntity.subscribeTopic) {
+                await mqttSubscriptionService.subscribeToEntity(entityId);
+                console.log(`✅ Subscribed to activated entity: ${updatedEntity.entityName}`);
+            }
+            // If subscribe topic changed, unsubscribe from old and subscribe to new
+            else if (originalEntity.subscribeTopic !== updatedEntity.subscribeTopic && updatedEntity.isActive) {
+                if (originalEntity.subscribeTopic) {
+                    await mqttSubscriptionService.unsubscribeFromEntity(entityId);
+                }
+                if (updatedEntity.subscribeTopic) {
+                    await mqttSubscriptionService.subscribeToEntity(entityId);
+                }
+                console.log(`✅ Updated subscription for entity: ${updatedEntity.entityName}`);
+            }
+        } catch (subscriptionError) {
+            console.error('Failed to update MQTT subscription:', subscriptionError);
+            // Don't fail the update if subscription fails
+        }
+
         return res.status(200).json({
             status:true,
-            data:updateEntity,
+            data:updatedEntity,
             msg:"Entity updated successfully"
         })
 
@@ -136,14 +180,30 @@ const updateEntity = async (req,res,next)=>{
 // Delete entity api
 const deleteEntity=async(req,res,next)=>{
     try{
-        const entityId=req.params.entityId;
-        const deleteEntity=await Entity.findByIdAndDelete(entityId);
-        if(!deleteEntity){
+        const entityId=req.params.id;
+        
+        // Get entity details before deletion for unsubscription
+        const entityToDelete = await Entity.findById(entityId);
+        if(!entityToDelete){
             return res.status(404).json({
                 status:false,
                 msg:"Entity not found"
             })
         }
+
+        // Unsubscribe from MQTT topic if entity was active and had a subscribe topic
+        if (entityToDelete.isActive && entityToDelete.subscribeTopic) {
+            try {
+                await mqttSubscriptionService.unsubscribeFromEntity(entityId);
+                console.log(`✅ Unsubscribed from deleted entity: ${entityToDelete.entityName}`);
+            } catch (subscriptionError) {
+                console.error('Failed to unsubscribe from deleted entity:', subscriptionError);
+                // Continue with deletion even if unsubscription fails
+            }
+        }
+
+        const deleteEntity=await Entity.findByIdAndDelete(entityId);
+        
         return res.status(200).json({
             status:true,
             msg:"Entity deleted successfully"
@@ -236,6 +296,53 @@ const getAllEntitieswithDevices = async (req, res, next) => {
     }
 };
 
+// Refresh MQTT subscriptions for all active entities
+const refreshMQTTSubscriptions = async (req, res, next) => {
+    try {
+        const mqttSubscriptionService = require('../services/mqttSubscriptionService');
+        await mqttSubscriptionService.subscribeToAllActiveEntities();
+        
+        const subscribedTopics = mqttSubscriptionService.getSubscribedTopics();
+        
+        return res.status(200).json({
+            status: true,
+            msg: "MQTT subscriptions refreshed successfully",
+            data: {
+                subscribedTopicsCount: subscribedTopics.length,
+                subscribedTopics: subscribedTopics
+            }
+        });
+    } catch (error) {
+        return res.status(500).json({
+            status: false,
+            error: error.message,
+            msg: "Error refreshing MQTT subscriptions"
+        });
+    }
+};
+
+// Get current MQTT subscription status
+const getMQTTSubscriptionStatus = async (req, res, next) => {
+    try {
+        const mqttSubscriptionService = require('../services/mqttSubscriptionService');
+        const subscribedTopics = mqttSubscriptionService.getSubscribedTopics();
+        
+        return res.status(200).json({
+            status: true,
+            data: {
+                subscribedTopicsCount: subscribedTopics.length,
+                subscribedTopics: subscribedTopics
+            }
+        });
+    } catch (error) {
+        return res.status(500).json({
+            status: false,
+            error: error.message,
+            msg: "Error getting MQTT subscription status"
+        });
+    }
+};
+
 module.exports={
     AddEntity,
     getAllEntities,
@@ -244,5 +351,7 @@ module.exports={
     getEntitiesByDeviceId,
     getEntityById,
     updateEntity,
-    deleteEntity
+    deleteEntity,
+    refreshMQTTSubscriptions,
+    getMQTTSubscriptionStatus
 };

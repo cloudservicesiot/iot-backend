@@ -155,15 +155,21 @@ const getAllDeviceswithEntities = async (req, res, next) => {
                     _id: {
                         deviceId: '$_id',
                         name: '$name',
-                        ip: '$ip'
+                        deviceId: '$deviceId',
+                        status: '$status',
+                        isActive: '$isActive',
+                        createdAt: '$createdAt',
+                        updatedAt: '$updatedAt'
                     },
                     entities: {
                         $push: {
                             entityName: '$entities.entityName',
                             entityId: '$entities.entityId',
-                            domain: '$entities.domain',
+                            subscribeTopic: '$entities.subscribeTopic',
+                            publishTopic: '$entities.publishTopic',
+                            stateType: '$entities.stateType',
                             state: '$entities.state',
-                            IsActive: '$entities.IsActive'
+                            isActive: '$entities.isActive'
                         }
                     }
                 }
@@ -173,7 +179,11 @@ const getAllDeviceswithEntities = async (req, res, next) => {
                     entities: 1,
                     _id: '$_id.deviceId',
                     name: '$_id.name',
-                    ip: '$_id.ip',
+                    deviceId: '$_id.deviceId',
+                    status: '$_id.status',
+                    isActive: '$_id.isActive',
+                    createdAt: '$_id.createdAt',
+                    updatedAt: '$_id.updatedAt'
                 }
             }
         ];
