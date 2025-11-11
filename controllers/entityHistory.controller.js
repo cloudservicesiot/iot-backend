@@ -82,4 +82,30 @@ const getEntityRawHistoryByEntityIdAndDate = async (req, res) => {
   }
 };
 
-module.exports = {getAllEntities,getEntityHistory,getEntityRawHistoryByEntityIdAndDate}
+const getEntityRawHistoryByEntityIdAndDateRange = async (req, res) => {
+  try {
+    const { entityId, startDate, endDate } = req.query;
+    if (!entityId || !startDate || !endDate) {
+      return res.status(400).json({ error: "Missing required parameters" });
+    }
+
+    // Parse dates and set time boundaries
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+
+    // Find all history for that entity in the date range
+    const history = await entityRawHistory.find({
+      entityId,
+      time: { $gte: start, $lte: end }
+    }).sort({ time: 1 });
+
+    res.status(200).json({ data: history });
+  } catch (error) {
+    console.error('Error fetching entity raw history by date range:', error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+module.exports = {getAllEntities,getEntityHistory,getEntityRawHistoryByEntityIdAndDate,getEntityRawHistoryByEntityIdAndDateRange}

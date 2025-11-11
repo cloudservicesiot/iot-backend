@@ -7,7 +7,7 @@ router.route("/add").post(AddDevice);
 // Edit Device
 router.route("/edit/:deviceId").put(editDevice);
 // Delete Device
-router.route("/delete/:deviceId").delete(deleteDevice);
+router.route("/delete/:id").delete(deleteDevice);
 // Get Device
 router.route("/getall").get(getallDevices);
 // get with entities

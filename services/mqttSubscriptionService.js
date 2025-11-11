@@ -73,7 +73,7 @@ class MQTTSubscriptionService {
   // Subscribe to all active entities
   async subscribeToAllActiveEntities() {
     try {
-      const entities = await Entity.find({ isActive: false });
+      const entities = await Entity.find({ isActive: true });
       const subscriptionPromises = entities.map(entity => {
         if (entity.subscribeTopic && !this.subscribedTopics.has(entity.subscribeTopic)) {
           return new Promise((resolve, reject) => {

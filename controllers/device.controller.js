@@ -1,4 +1,5 @@
 const Device=require('../models/Device.model');
+const Entity=require('../models/entity.model');
 
 const AddDevice = async (req, res, next) => {
     try {
@@ -82,7 +83,7 @@ const editDevice = async (req, res, next) => {
 const deleteDevice = async (req, res, next) => {
     try{
 
-        const deviceId = req.params.deviceId;
+        const deviceId = req.params.id;
         const device = await Device.findByIdAndDelete(deviceId);
         if (!device) {
             return res.status(404).json({
