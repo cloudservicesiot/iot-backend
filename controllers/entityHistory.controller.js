@@ -108,96 +108,9 @@ const getEntityRawHistoryByEntityIdAndDateRange = async (req, res) => {
   }
 };
 
-// Optimized endpoint: Get matched entity values for specific timestamps
-// This processes matching on backend and returns only needed data
-const getMatchedEntityValuesForTimestamps = async (req, res) => {
-  try {
-    const { entityIds, startDate, endDate, energyTimestamps } = req.body;
-    
-    if (!entityIds || !Array.isArray(entityIds) || entityIds.length === 0) {
-      return res.status(400).json({ error: "entityIds array is required" });
-    }
-    
-    if (!startDate || !endDate) {
-      return res.status(400).json({ error: "startDate and endDate are required" });
-    }
-    
-    if (!energyTimestamps || !Array.isArray(energyTimestamps) || energyTimestamps.length === 0) {
-      return res.status(400).json({ error: "energyTimestamps array is required" });
-    }
-
-    // Parse dates and set time boundaries
-    const start = new Date(startDate);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(endDate);
-    end.setHours(23, 59, 59, 999);
-
-    // Time window for matching (5 minutes in milliseconds)
-    const MATCH_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
-
-    // Fetch raw history for all entities in parallel
-    const entityHistories = await Promise.all(
-      entityIds.map(async (entityId) => {
-        try {
-          const history = await entityRawHistory.find({
-            entityId,
-            time: { $gte: start, $lte: end }
-          }).sort({ time: 1 }).lean();
-          
-          return { entityId, history };
-        } catch (err) {
-          console.error(`Error fetching history for entity ${entityId}:`, err);
-          return { entityId, history: [] };
-        }
-      })
-    );
-
-    // Process matching: For each entity and each energy timestamp, find nearest value
-    const result = {};
-    
-    entityHistories.forEach(({ entityId, history }) => {
-      if (!history || history.length === 0) {
-        result[entityId] = {};
-        return;
-      }
-
-      const matchedValues = {};
-      
-      energyTimestamps.forEach((timestamp) => {
-        const targetTime = new Date(timestamp).getTime();
-        let nearest = null;
-        let minDiff = Infinity;
-
-        // Find nearest value within 5 minutes
-        for (const item of history) {
-          const itemTime = new Date(item.time).getTime();
-          const diff = Math.abs(itemTime - targetTime);
-          
-          if (diff < minDiff && diff <= MATCH_WINDOW_MS) {
-            minDiff = diff;
-            nearest = item;
-          }
-        }
-
-        if (nearest) {
-          matchedValues[timestamp] = nearest;
-        }
-      });
-
-      result[entityId] = matchedValues;
-    });
-
-    res.status(200).json({ data: result });
-  } catch (error) {
-    console.error('Error fetching matched entity values:', error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-};
-
 module.exports = {
   getAllEntities,
   getEntityHistory,
   getEntityRawHistoryByEntityIdAndDate,
-  getEntityRawHistoryByEntityIdAndDateRange,
-  getMatchedEntityValuesForTimestamps
+  getEntityRawHistoryByEntityIdAndDateRange
 }
