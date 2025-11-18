@@ -4,7 +4,7 @@ const Schema = mongoose.Schema;
 const energyDailySchema = new Schema({
     entityId: { type: Schema.Types.ObjectId, ref: 'Entity', required: true },
     totalValue: { type: Number, required: true },
-    totalEnergyConsumption: { type: Number, required: true }, // Total meter reading at end of day
+    totalEnergyConsumption: { type: Number,}, // Total meter reading at end of day
     timestamp: { type: Date, required: true },
 });
 

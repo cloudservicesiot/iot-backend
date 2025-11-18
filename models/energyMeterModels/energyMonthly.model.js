@@ -4,7 +4,7 @@ const Schema = mongoose.Schema;
 const energyMonthlySchema = new Schema({
     entityId: { type: Schema.Types.ObjectId, ref: 'Entity', required: true },
     totalValue: { type: Number, required: true },
-    totalEnergyConsumption: { type: Number, required: true }, // Total meter reading at end of month
+    totalEnergyConsumption: { type: Number,}, // Total meter reading at end of month
     timestamp: { type: Date, required: true },
 });
 
